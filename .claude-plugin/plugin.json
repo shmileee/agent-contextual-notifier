@@ -1,0 +1,20 @@
+{
+  "name": "agent-contextual-notifier",
+  "version": "0.2.0",
+  "description": "Contextual macOS notifications and tmux attention markers when Claude Code needs you",
+  "author": {
+    "name": "shmileee"
+  },
+  "homepage": "https://github.com/shmileee/agent-contextual-notifier#readme",
+  "repository": "https://github.com/shmileee/agent-contextual-notifier",
+  "license": "MIT",
+  "keywords": ["notification", "tmux", "macos", "hooks"],
+  "userConfig": {
+    "sound": {
+      "type": "string",
+      "title": "Notification sound",
+      "description": "macOS sound played with each notification, for example Submarine or Glass.",
+      "default": "Submarine"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "agent-contextual-notifier",
+  "description": "Contextual notifications and tmux attention markers for coding agents",
+  "owner": {
+    "name": "shmileee"
+  },
+  "plugins": [
+    {
+      "name": "agent-contextual-notifier",
+      "source": "./",
+      "description": "Contextual macOS notifications and tmux attention markers when Claude Code needs you"
+    }
+  ]
+}
