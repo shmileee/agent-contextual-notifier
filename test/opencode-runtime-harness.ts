@@ -1,5 +1,5 @@
-import type { NotificationContent } from "../src/domain"
-import type { MarkerEvent, NotifierRuntime } from "../src/runtime"
+import type { MarkerEvent, NotificationContent } from "../src/core/domain"
+import type { NotifierRuntime } from "../src/opencode/runtime"
 
 export type RuntimeHarness = {
   readonly markers: MarkerEvent[]

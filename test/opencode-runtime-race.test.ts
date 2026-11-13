@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
-import { createNotifierEventHandler, type SessionSnapshot } from "../src/runtime"
-import { createRuntimeHarness, idleEvent, userMessageEvent } from "./runtime-harness"
+import { createNotifierEventHandler, type SessionSnapshot } from "../src/opencode/runtime"
+import { createRuntimeHarness, idleEvent, userMessageEvent } from "./opencode-runtime-harness"
 
 describe("concurrent notifier events", () => {
   test("reserves completion before asynchronous checks finish", async () => {

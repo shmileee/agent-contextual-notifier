@@ -8,6 +8,8 @@ export const notificationKinds = [
 
 export type NotificationKind = (typeof notificationKinds)[number]
 
+export type MarkerEvent = NotificationKind | "session_started" | "user_message"
+
 export type CompletionReadiness = {
   readonly background: "active" | "idle" | "unknown"
   readonly session: "child" | "top-level" | "unknown"
@@ -28,6 +30,7 @@ export type CompletionDecision =
     }
 
 export type NotificationContext = {
+  readonly agentName: string
   readonly event: NotificationKind
   readonly projectName: string
   readonly sessionTitle: string
@@ -82,6 +85,8 @@ const eventLabels = {
   question: "Question waiting",
 } satisfies Record<NotificationKind, string>
 
+const titleLimit = 80
+
 function compact(value: string | undefined, limit: number): string | undefined {
   const normalized = value?.replace(/\s+/g, " ").trim()
   if (!normalized) return undefined
@@ -90,8 +95,10 @@ function compact(value: string | undefined, limit: number): string | undefined {
 }
 
 export function buildNotificationContent(context: NotificationContext): NotificationContent {
-  const title = `OpenCode · ${compact(context.projectName, 69) ?? "project"}`
-  const subtitle = compact(context.sessionTitle, 100) ?? "OpenCode session"
+  const agentName = compact(context.agentName, 30) ?? "Agent"
+  const projectName = compact(context.projectName, titleLimit - agentName.length - 3)
+  const title = `${agentName} · ${projectName ?? "project"}`
+  const subtitle = compact(context.sessionTitle, 100) ?? `${agentName} session`
   const lines = [eventLabels[context.event]]
   const userText = compact(context.lastUserText, 150)
   const assistantText = compact(context.lastAssistantText, 150)

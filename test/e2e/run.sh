@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/opencode-notifier-e2e.XXXXXX")"
-IMAGE="opencode-contextual-notifier-e2e:$PPID-$$-$RANDOM"
+TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/agent-notifier-e2e.XXXXXX")"
+IMAGE="agent-contextual-notifier-e2e:$PPID-$$-$RANDOM"
 
 cleanup() {
 	docker image rm --force "$IMAGE" >/dev/null 2>&1 || true

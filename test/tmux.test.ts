@@ -1,70 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { join } from "node:path"
 
-const helper = join(import.meta.dir, "..", "scripts", "opencode-notifier-tmux")
-const plugin = join(import.meta.dir, "..", "opencode-contextual-notifier.tmux")
-const resources: Array<{ readonly session: string; readonly socket: string }> = []
+import { createTmux, destroyTmuxSessions, runProcess, runTmux } from "./tmux-harness"
 
-type ProcessResult = {
-  readonly exitCode: number
-  readonly stderr: string
-  readonly stdout: string
-}
+const helper = join(import.meta.dir, "..", "scripts", "agent-notifier-tmux")
+const plugin = join(import.meta.dir, "..", "agent-contextual-notifier.tmux")
 
-async function runProcess(
-  command: readonly string[],
-  environment: Readonly<Record<string, string>> = {},
-): Promise<ProcessResult> {
-  const process = Bun.spawn([...command], {
-    env: { ...Bun.env, ...environment },
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  const [exitCode, stdout, stderr] = await Promise.all([
-    process.exited,
-    new Response(process.stdout).text(),
-    new Response(process.stderr).text(),
-  ])
-  return { exitCode, stderr, stdout }
-}
-
-async function runTmux(socket: string, args: readonly string[]): Promise<string> {
-  const result = await runProcess(["tmux", "-L", socket, ...args])
-  expect(result.exitCode, result.stderr).toBe(0)
-  return result.stdout.trim()
-}
-
-async function createTmux(): Promise<{
-  readonly environment: Readonly<Record<string, string>>
-  readonly paneID: string
-  readonly session: string
-  readonly socket: string
-}> {
-  const suffix = crypto.randomUUID()
-  const socket = `opencode-notifier-test-${suffix}`
-  const session = `notifier-test-${suffix}`
-  resources.push({ session, socket })
-  await runTmux(socket, ["-f", "/dev/null", "new-session", "-d", "-s", session, "-n", "ha"])
-  const paneID = await runTmux(socket, ["display-message", "-p", "-t", session, "#{pane_id}"])
-  const tmux = await runTmux(socket, [
-    "display-message",
-    "-p",
-    "-t",
-    session,
-    "#{socket_path},#{pid},0",
-  ])
-  return { environment: { TMUX: tmux, TMUX_PANE: paneID }, paneID, session, socket }
-}
-
-afterEach(async () => {
-  await Promise.all(
-    resources
-      .splice(0)
-      .map(({ session, socket }) =>
-        runProcess(["tmux", "-L", socket, "kill-session", "-t", session]),
-      ),
-  )
-})
+afterEach(destroyTmuxSessions)
 
 describe("tmux helper", () => {
   test("sets, labels, and clears the originating window", async () => {
@@ -79,24 +21,12 @@ describe("tmux helper", () => {
     expect(completion.exitCode, completion.stderr).toBe(0)
     expect(label.stdout.trim()).toBe("0: ha")
     expect(
-      await runTmux(tmux.socket, [
-        "display-message",
-        "-p",
-        "-t",
-        tmux.paneID,
-        "#{@opencode_waiting}",
-      ]),
+      await runTmux(tmux.socket, ["display-message", "-p", "-t", tmux.paneID, "#{@agent_waiting}"]),
     ).toBe("●")
 
     await runProcess([helper, "user_message"], tmux.environment)
     expect(
-      await runTmux(tmux.socket, [
-        "display-message",
-        "-p",
-        "-t",
-        tmux.paneID,
-        "#{@opencode_waiting}",
-      ]),
+      await runTmux(tmux.socket, ["display-message", "-p", "-t", tmux.paneID, "#{@agent_waiting}"]),
     ).toBe("")
   })
 
@@ -115,13 +45,7 @@ describe("tmux helper", () => {
 
     // Then
     expect(
-      await runTmux(tmux.socket, [
-        "display-message",
-        "-p",
-        "-t",
-        tmux.paneID,
-        "#{@opencode_waiting}",
-      ]),
+      await runTmux(tmux.socket, ["display-message", "-p", "-t", tmux.paneID, "#{@agent_waiting}"]),
     ).toBe("●")
     await runTmux(tmux.socket, ["wait-for", "-S", release])
   })
@@ -158,7 +82,7 @@ describe("TPM entrypoint", () => {
       "set-option",
       "-g",
       "status-right",
-      "#{?@opencode_waiting,#{@opencode_waiting} ,}RIGHT",
+      "#{?@agent_waiting,#{@agent_waiting} ,}RIGHT",
     ])
     await runTmux(tmux.socket, ["set-window-option", "-g", "window-status-format", "WINDOW"])
     await runTmux(tmux.socket, [
@@ -185,26 +109,29 @@ describe("TPM entrypoint", () => {
       ["window-status-current-format", "CURRENT"],
     ] as const) {
       const format = await runTmux(tmux.socket, ["show-window-options", "-gv", optionName])
-      expect(format.match(/#\{@opencode_waiting\}/g)).toHaveLength(1)
+      expect(format.match(/#\{@agent_waiting\}/g)).toHaveLength(1)
       expect(format).toContain(original)
     }
     for (const hookName of ["after-select-window", "session-window-changed", "client-focus-in"]) {
       const hook = await runTmux(tmux.socket, ["show-hooks", "-g", hookName])
-      expect(hook.split("\n").filter((line) => line.includes("@opencode_waiting"))).toHaveLength(1)
+      expect(hook.split("\n").filter((line) => line.includes("@agent_waiting"))).toHaveLength(1)
       if (hookName === "after-select-window") {
         expect(hook).toContain("@existing-hook")
       }
     }
   })
 
-  test("reuses a legacy marker-clearing hook without replacing other hooks", async () => {
+  test("migrates opencode-contextual-notifier names without moving the marker", async () => {
     // Given
     const tmux = await createTmux()
+    const legacyFormat = "[#{?@opencode_waiting,#{@opencode_waiting} ,}#I:#W]"
+    await runTmux(tmux.socket, ["set-option", "-g", "@opencode-notifier-marker", "!"])
+    await runTmux(tmux.socket, ["set-window-option", "-g", "window-status-format", legacyFormat])
     await runTmux(tmux.socket, [
       "set-hook",
       "-g",
       "after-select-window",
-      "set-window-option -q -u @opencode_waiting",
+      "set-option -wq -u @opencode_waiting",
     ])
     await runTmux(tmux.socket, [
       "set-hook",
@@ -215,10 +142,19 @@ describe("TPM entrypoint", () => {
 
     // When
     await runProcess([plugin], tmux.environment)
+    await runProcess([plugin], tmux.environment)
+    await runProcess([helper, "complete"], tmux.environment)
 
     // Then
+    expect(await runTmux(tmux.socket, ["show-window-options", "-gv", "window-status-format"])).toBe(
+      "[#{?@agent_waiting,#{@agent_waiting} ,}#I:#W]",
+    )
     const hook = await runTmux(tmux.socket, ["show-hooks", "-g", "after-select-window"])
-    expect(hook.split("\n").filter((line) => line.includes("@opencode_waiting"))).toHaveLength(1)
+    expect(hook).not.toContain("@opencode_waiting")
+    expect(hook.split("\n").filter((line) => line.includes("@agent_waiting"))).toHaveLength(1)
     expect(hook).toContain("@existing-hook")
+    expect(
+      await runTmux(tmux.socket, ["display-message", "-p", "-t", tmux.paneID, "#{@agent_waiting}"]),
+    ).toBe("!")
   })
 })

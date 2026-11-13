@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
-import { createNotifierEventHandler } from "../src/runtime"
-import { createRuntimeHarness, idleEvent, userMessageEvent } from "./runtime-harness"
+import { createNotifierEventHandler } from "../src/opencode/runtime"
+import { createRuntimeHarness, idleEvent, userMessageEvent } from "./opencode-runtime-harness"
 
 describe("createNotifierEventHandler", () => {
   test("delivers one completion for a ready top-level session", async () => {

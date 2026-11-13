@@ -5,7 +5,7 @@ import {
   type CompletionReadiness,
   decideCompletionNotification,
   type NotificationContext,
-} from "../src/domain"
+} from "../src/core/domain"
 
 const ready = {
   background: "idle",
@@ -62,6 +62,7 @@ describe("buildNotificationContent", () => {
   test("renders completion context", () => {
     // Given
     const context = {
+      agentName: "OpenCode",
       event: "complete",
       projectName: "opencode",
       sessionTitle: "Fix notifications",
@@ -83,6 +84,7 @@ describe("buildNotificationContent", () => {
   test("renders actionable error context", () => {
     // Given
     const context = {
+      agentName: "OpenCode",
       event: "error",
       projectName: "opencode",
       sessionTitle: "Run migration",
@@ -100,6 +102,7 @@ describe("buildNotificationContent", () => {
   test("bounds untrusted notification text", () => {
     // Given
     const context = {
+      agentName: "Claude Code",
       event: "question",
       projectName: "A".repeat(200),
       sessionTitle: "B".repeat(200),
@@ -114,5 +117,23 @@ describe("buildNotificationContent", () => {
     expect(content.title.length).toBeLessThanOrEqual(80)
     expect(content.subtitle.length).toBeLessThanOrEqual(100)
     expect(content.body.length).toBeLessThanOrEqual(420)
+  })
+
+  test("names the agent in the title and the fallback subtitle", () => {
+    // Given
+    const context = {
+      agentName: "Claude Code",
+      event: "permission",
+      projectName: "dotfiles",
+      sessionTitle: "",
+    } satisfies NotificationContext
+
+    // When
+    const content = buildNotificationContent(context)
+
+    // Then
+    expect(content.title).toBe("Claude Code · dotfiles")
+    expect(content.subtitle).toBe("Claude Code session")
+    expect(content.body).toBe("Permission required")
   })
 })

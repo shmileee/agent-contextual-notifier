@@ -2,7 +2,6 @@ import { deliverAction, handleCompletion, markTopLevel, type NotifierRuntime } f
 import { parseNotifierEvent, type SessionID } from "./events"
 
 export type {
-  MarkerEvent,
   MessageSnapshot,
   NotifierRuntime,
   SessionSnapshot,

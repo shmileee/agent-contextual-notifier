@@ -1,10 +1,12 @@
 import {
   buildNotificationContent,
   decideCompletionNotification,
-  type NotificationContent,
   type NotificationKind,
-} from "./domain"
+} from "../core/domain"
+import type { NotifierSinks } from "../core/sinks"
 import type { SessionID } from "./events"
+
+const agentName = "OpenCode"
 
 export type SessionSnapshot = {
   readonly parentID?: string | undefined
@@ -20,16 +22,12 @@ export type TodoSnapshot = {
   readonly status: string
 }
 
-export type MarkerEvent = NotificationKind | "session_started" | "user_message"
-
-export type NotifierRuntime = {
+export type NotifierRuntime = NotifierSinks & {
   readonly projectName: string
   readonly readBackground: (sessionID: SessionID) => Promise<"active" | "idle" | "unknown">
   readonly readMessages: (sessionID: SessionID) => Promise<MessageSnapshot | undefined>
   readonly readSession: (sessionID: SessionID) => Promise<SessionSnapshot | undefined>
   readonly readTodos: (sessionID: SessionID) => Promise<readonly TodoSnapshot[] | undefined>
-  readonly mark: (event: MarkerEvent) => Promise<void>
-  readonly notify: (content: NotificationContent) => Promise<void>
 }
 
 type CurrentRequest = {
@@ -59,6 +57,7 @@ export async function deliverAction(
   const messages = await failClosed(runtime.readMessages(request.sessionID), undefined)
   if (!request.isCurrent()) return false
   const content = buildNotificationContent({
+    agentName,
     event: request.event,
     projectName: runtime.projectName,
     sessionTitle: session.title,
@@ -100,6 +99,7 @@ export async function handleCompletion(
   const messages = await failClosed(runtime.readMessages(request.sessionID), undefined)
   if (!request.isCurrent()) return false
   const content = buildNotificationContent({
+    agentName,
     event: "complete",
     projectName: runtime.projectName,
     sessionTitle: session.title,

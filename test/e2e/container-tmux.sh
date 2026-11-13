@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ARTIFACT="/artifact/plugin.tgz"
-ROOT="/tmp/opencode-notifier-e2e"
-SOCKET="opencode-notifier-e2e"
+ROOT="/tmp/agent-notifier-e2e"
+SOCKET="agent-notifier-e2e"
 SESSION="notifier-e2e"
 SERVICES_PID=""
 
@@ -95,17 +95,17 @@ fi
 
 INSTALLED_ROOT="$XDG_CACHE_HOME/opencode/packages/$PACKAGE_NAME@$PACKAGE_VERSION/node_modules/$PACKAGE_NAME"
 [ -f "$INSTALLED_ROOT/dist/index.mjs" ] || fail "OpenCode did not install the packed plugin"
-[ -x "$INSTALLED_ROOT/opencode-contextual-notifier.tmux" ] || fail "TPM entrypoint is not executable"
-[ -x "$INSTALLED_ROOT/scripts/opencode-notifier-tmux" ] || fail "tmux helper is not executable"
+[ -x "$INSTALLED_ROOT/agent-contextual-notifier.tmux" ] || fail "TPM entrypoint is not executable"
+[ -x "$INSTALLED_ROOT/scripts/agent-notifier-tmux" ] || fail "tmux helper is not executable"
 
-REAL_HELPER="$INSTALLED_ROOT/scripts/opencode-notifier-tmux.real"
-mv "$INSTALLED_ROOT/scripts/opencode-notifier-tmux" "$REAL_HELPER"
-cat >"$INSTALLED_ROOT/scripts/opencode-notifier-tmux" <<'BASH'
+REAL_HELPER="$INSTALLED_ROOT/scripts/agent-notifier-tmux.real"
+mv "$INSTALLED_ROOT/scripts/agent-notifier-tmux" "$REAL_HELPER"
+cat >"$INSTALLED_ROOT/scripts/agent-notifier-tmux" <<'BASH'
 #!/usr/bin/env bash
-printf '%s\n' "${1:-}" >>/tmp/opencode-notifier-e2e/helper-events.log
-exec "$(dirname -- "$0")/opencode-notifier-tmux.real" "$@"
+printf '%s\n' "${1:-}" >>/tmp/agent-notifier-e2e/helper-events.log
+exec "$(dirname -- "$0")/agent-notifier-tmux.real" "$@"
 BASH
-chmod +x "$INSTALLED_ROOT/scripts/opencode-notifier-tmux"
+chmod +x "$INSTALLED_ROOT/scripts/agent-notifier-tmux"
 
 if ! (cd "$ROOT/project" && opencode debug config) >"$ROOT/config.json" 2>"$ROOT/config.log"; then
 	fail "OpenCode could not resolve the project configuration"
@@ -118,7 +118,7 @@ tmux_e2e new-session -d -s "$SESSION" -n ha -c "$ROOT/project"
 tmux_e2e new-window -d -t "$SESSION" -n work -c "$ROOT/project"
 PANE_ID="$(tmux_e2e display-message -p -t "$SESSION:ha" '#{pane_id}')"
 
-PANE_COMMAND="printf '%s' \"\$TMUX\" >$ROOT/tmux.env; printf '%s' \"\$TMUX_PANE\" >$ROOT/tmux-pane.env; $INSTALLED_ROOT/opencode-contextual-notifier.tmux && opencode --mini --no-replay --model e2e/deterministic --print-logs --log-level DEBUG 2>$ROOT/opencode.log"
+PANE_COMMAND="printf '%s' \"\$TMUX\" >$ROOT/tmux.env; printf '%s' \"\$TMUX_PANE\" >$ROOT/tmux-pane.env; $INSTALLED_ROOT/agent-contextual-notifier.tmux && opencode --mini --no-replay --model e2e/deterministic --print-logs --log-level DEBUG 2>$ROOT/opencode.log"
 tmux_e2e send-keys -t "$PANE_ID" -l "$PANE_COMMAND"
 tmux_e2e send-keys -t "$PANE_ID" Enter
 
@@ -144,7 +144,7 @@ fi
 for hook_name in after-select-window session-window-changed client-focus-in; do
 	HOOK="$(tmux_e2e show-hooks -g "$hook_name")"
 	case "$HOOK" in
-	*'@opencode_waiting'*) ;;
+	*'@agent_waiting'*) ;;
 	*) fail "TPM entrypoint did not install $hook_name" ;;
 	esac
 	tmux_e2e set-hook -gu "$hook_name"
@@ -154,8 +154,8 @@ TMUX_VALUE="$(<"$ROOT/tmux.env")"
 PANE_ENV="$(<"$ROOT/tmux-pane.env")"
 [ "$PANE_ENV" = "$PANE_ID" ] || fail "tmux pane environment does not match the target pane"
 
-TMUX="$TMUX_VALUE" TMUX_PANE="$PANE_ID" "$INSTALLED_ROOT/scripts/opencode-notifier-tmux" complete
-SEEDED_MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@opencode_waiting}')"
+TMUX="$TMUX_VALUE" TMUX_PANE="$PANE_ID" "$INSTALLED_ROOT/scripts/agent-notifier-tmux" complete
+SEEDED_MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@agent_waiting}')"
 [ "$SEEDED_MARKER" = "●" ] || fail "installed helper did not seed the tmux marker"
 : >"$ROOT/helper-events.log"
 
@@ -164,7 +164,7 @@ tmux_e2e send-keys -t "$PANE_ID" Enter
 
 USER_EVENT_CLEARED=""
 for _ in $(seq 1 300); do
-	CURRENT_MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@opencode_waiting}')"
+	CURRENT_MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@agent_waiting}')"
 	if [ -z "$CURRENT_MARKER" ]; then
 		USER_EVENT_CLEARED="yes"
 		break
@@ -182,7 +182,7 @@ tmux_e2e select-window -t "$SESSION:work"
 
 MARKER=""
 for _ in $(seq 1 300); do
-	MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@opencode_waiting}')"
+	MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@agent_waiting}')"
 	[ "$MARKER" = "●" ] && break
 	sleep 0.1
 done
@@ -206,13 +206,13 @@ fi
 for option_name in window-status-format window-status-current-format; do
 	WINDOW_FORMAT="$(tmux_e2e show-window-options -gv "$option_name")"
 	case "$WINDOW_FORMAT" in
-	*'#{@opencode_waiting}'*) ;;
+	*'#{@agent_waiting}'*) ;;
 	*) fail "TPM entrypoint did not install marker rendering in $option_name" ;;
 	esac
 done
 
-TMUX="$TMUX_VALUE" TMUX_PANE="$PANE_ID" "$INSTALLED_ROOT/scripts/opencode-notifier-tmux" user_message
-CLEARED_MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@opencode_waiting}')"
+TMUX="$TMUX_VALUE" TMUX_PANE="$PANE_ID" "$INSTALLED_ROOT/scripts/agent-notifier-tmux" user_message
+CLEARED_MARKER="$(tmux_e2e display-message -p -t "$PANE_ID" '#{@agent_waiting}')"
 [ -z "$CLEARED_MARKER" ] || fail "installed helper did not clear the marker"
 
 printf '%s\n' "container e2e passed: $PACKAGE_NAME@$PACKAGE_VERSION installed by OpenCode; marker set and cleared"

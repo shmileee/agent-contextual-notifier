@@ -1,7 +1,7 @@
 {
-  "name": "opencode-contextual-notifier",
-  "version": "0.1.2",
-  "description": "Context-aware macOS notifications and tmux attention markers for OpenCode",
+  "name": "agent-contextual-notifier",
+  "version": "0.2.0",
+  "description": "Context-aware macOS notifications and tmux attention markers for coding agents (OpenCode, Claude Code)",
   "type": "module",
   "main": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
@@ -14,7 +14,7 @@
   "files": [
     "dist",
     "scripts",
-    "opencode-contextual-notifier.tmux",
+    "agent-contextual-notifier.tmux",
     "README.md",
     "LICENSE"
   ],
@@ -24,13 +24,15 @@
     "format": "biome check --write .",
     "format:check": "biome check .",
     "prepack": "bun run check && bun run build",
-    "shellcheck": "shellcheck scripts/opencode-notifier-tmux opencode-contextual-notifier.tmux test/e2e/run.sh test/e2e/container-tmux.sh",
+    "shellcheck": "shellcheck scripts/agent-notifier-tmux agent-contextual-notifier.tmux test/e2e/run.sh test/e2e/container-tmux.sh",
     "test": "bun test",
     "test:e2e": "bash test/e2e/run.sh",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "opencode",
+    "claude-code",
+    "coding-agent",
     "plugin",
     "tmux",
     "notification",
@@ -40,12 +42,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shmileee/opencode-contextual-notifier.git"
+    "url": "git+https://github.com/shmileee/agent-contextual-notifier.git"
   },
   "bugs": {
-    "url": "https://github.com/shmileee/opencode-contextual-notifier/issues"
+    "url": "https://github.com/shmileee/agent-contextual-notifier/issues"
   },
-  "homepage": "https://github.com/shmileee/opencode-contextual-notifier#readme",
+  "homepage": "https://github.com/shmileee/agent-contextual-notifier#readme",
   "publishConfig": {
     "access": "public"
   },
